@@ -161,10 +161,8 @@ with tab2:
 
 with tab3:
     st.subheader("Greeks")
-    # Add the actual content for tab3 here, or use `pass` if not yet implemented
     pass
 
 with tab4:
     st.subheader("Visualizations")
-    # Add the actual content for tab4 here, or use `pass` if not yet implemented
     pass
