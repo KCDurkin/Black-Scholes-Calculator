@@ -5,8 +5,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from scipy.stats import norm
 
-[Previous imports and functions remain the same...]
-
 def calculate_pnl_scenarios(S, K, T, sigma, r, premium, option_type='call', scenarios=None):
     """Calculate P&L for different price scenarios"""
     if scenarios is None:
@@ -40,7 +38,19 @@ def calculate_pnl_scenarios(S, K, T, sigma, r, premium, option_type='call', scen
     
     return pd.DataFrame(results)
 
-# Update the main Streamlit interface
+def calculate_black_scholes(S, K, T, sigma, r, option_type='call'):
+    """Calculate Black-Scholes option price"""
+    d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
+    
+    if option_type == 'call':
+        price = S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+    else:
+        price = K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
+    
+    return price, d1, d2
+
+# Streamlit page setup
 st.set_page_config(page_title="Options P&L Calculator", layout="wide")
 st.title("Options P&L Calculator")
 
@@ -48,7 +58,13 @@ st.title("Options P&L Calculator")
 tab1, tab2, tab3, tab4 = st.tabs(["Basic Analysis", "P&L Scenarios", "Greeks", "Visualizations"])
 
 with tab1:
-    [Previous tab1 content remains the same...]
+    st.subheader("Basic Analysis")
+    # Add the actual content for tab1 here...
+    spot_price = st.number_input("Spot Price", value=100.0, step=1.0)
+    strike_price = st.number_input("Strike Price", value=100.0, step=1.0)
+    time_to_expiry = st.number_input("Time to Expiry (in years)", value=1.0, step=0.1)
+    volatility = st.number_input("Volatility (as a decimal)", value=0.2, step=0.01)
+    risk_free_rate = st.number_input("Risk-Free Rate (as a decimal)", value=0.05, step=0.01)
 
 with tab2:
     st.subheader("Profit/Loss Analysis")
@@ -61,25 +77,25 @@ with tab2:
         
         if custom_scenarios:
             min_price = st.number_input("Minimum Price Scenario", 
-                                      value=float(spot_price * 0.7),
-                                      step=1.0)
+                                        value=float(spot_price * 0.7),
+                                        step=1.0)
             max_price = st.number_input("Maximum Price Scenario", 
-                                      value=float(spot_price * 1.3),
-                                      step=1.0)
+                                        value=float(spot_price * 1.3),
+                                        step=1.0)
             num_scenarios = st.number_input("Number of Scenarios", 
-                                          value=25,
-                                          min_value=5,
-                                          max_value=100,
-                                          step=5)
+                                            value=25,
+                                            min_value=5,
+                                            max_value=100,
+                                            step=5)
             scenarios = np.linspace(min_price, max_price, num_scenarios)
         else:
             scenarios = None
         
         # Calculate current prices
         call_price, _, _ = calculate_black_scholes(spot_price, strike_price, time_to_expiry, 
-                                                 volatility, risk_free_rate, 'call')
+                                                   volatility, risk_free_rate, 'call')
         put_price, _, _ = calculate_black_scholes(spot_price, strike_price, time_to_expiry, 
-                                                volatility, risk_free_rate, 'put')
+                                                  volatility, risk_free_rate, 'put')
         
         st.write("### Current Option Prices")
         st.write(f"Call Premium: ${call_price:.2f}")
@@ -88,45 +104,45 @@ with tab2:
     with col2:
         # Calculate P&L scenarios
         call_scenarios = calculate_pnl_scenarios(spot_price, strike_price, time_to_expiry, 
-                                               volatility, risk_free_rate, call_price, 
-                                               'call', scenarios)
+                                                 volatility, risk_free_rate, call_price, 
+                                                 'call', scenarios)
         put_scenarios = calculate_pnl_scenarios(spot_price, strike_price, time_to_expiry, 
-                                              volatility, risk_free_rate, put_price, 
-                                              'put', scenarios)
+                                                volatility, risk_free_rate, put_price, 
+                                                'put', scenarios)
         
         # Create P&L visualization
         fig = make_subplots(rows=2, cols=1, 
-                           subplot_titles=("P&L at Expiration", "Return on Investment (%)"))
+                            subplot_titles=("P&L at Expiration", "Return on Investment (%)"))
         
         # P&L Plot
         fig.add_trace(
             go.Scatter(x=call_scenarios['scenario_price'], 
-                      y=call_scenarios['pnl'],
-                      name="Call P&L",
-                      line=dict(color='green')),
+                       y=call_scenarios['pnl'],
+                       name="Call P&L",
+                       line=dict(color='green')),
             row=1, col=1
         )
         fig.add_trace(
             go.Scatter(x=put_scenarios['scenario_price'], 
-                      y=put_scenarios['pnl'],
-                      name="Put P&L",
-                      line=dict(color='red')),
+                       y=put_scenarios['pnl'],
+                       name="Put P&L",
+                       line=dict(color='red')),
             row=1, col=1
         )
         
         # ROI Plot
         fig.add_trace(
             go.Scatter(x=call_scenarios['scenario_price'], 
-                      y=call_scenarios['roi'],
-                      name="Call ROI",
-                      line=dict(color='green', dash='dash')),
+                       y=call_scenarios['roi'],
+                       name="Call ROI",
+                       line=dict(color='green', dash='dash')),
             row=2, col=1
         )
         fig.add_trace(
             go.Scatter(x=put_scenarios['scenario_price'], 
-                      y=put_scenarios['roi'],
-                      name="Put ROI",
-                      line=dict(color='red', dash='dash')),
+                       y=put_scenarios['roi'],
+                       name="Put ROI",
+                       line=dict(color='red', dash='dash')),
             row=2, col=1
         )
         
@@ -142,56 +158,13 @@ with tab2:
         fig.update_yaxes(title_text="ROI (%)", row=2, col=1)
         
         st.plotly_chart(fig, use_container_width=True)
-    
-    # P&L Scenario Table
-    st.write("### Detailed P&L Scenarios")
-    col3, col4 = st.columns(2)
-    
-    with col3:
-        st.write("#### Call Option Scenarios")
-        call_table = call_scenarios.round(2)
-        call_table.columns = ['Stock Price', 'Price Change %', 'Payoff', 'P&L', 'ROI %']
-        st.dataframe(call_table.style.highlight_max(['P&L'], color='lightgreen')
-                                   .highlight_min(['P&L'], color='lightpink'))
-        
-        # Key statistics
-        st.write("#### Call Option Statistics")
-        st.write(f"Maximum Profit: ${call_scenarios['pnl'].max():.2f}")
-        st.write(f"Maximum Loss: ${call_scenarios['pnl'].min():.2f}")
-        st.write(f"Break-even Price: ${strike_price + call_price:.2f}")
-    
-    with col4:
-        st.write("#### Put Option Scenarios")
-        put_table = put_scenarios.round(2)
-        put_table.columns = ['Stock Price', 'Price Change %', 'Payoff', 'P&L', 'ROI %']
-        st.dataframe(put_table.style.highlight_max(['P&L'], color='lightgreen')
-                                  .highlight_min(['P&L'], color='lightpink'))
-        
-        # Key statistics
-        st.write("#### Put Option Statistics")
-        st.write(f"Maximum Profit: ${put_scenarios['pnl'].max():.2f}")
-        st.write(f"Maximum Loss: ${put_scenarios['pnl'].min():.2f}")
-        st.write(f"Break-even Price: ${strike_price - put_price:.2f}")
 
-    # Add explanation
-    st.markdown("""
-    ### Understanding P&L Analysis
-    
-    #### Key Metrics:
-    - **P&L**: Profit or loss at different stock price levels
-    - **ROI**: Percentage return on investment
-    - **Break-even Point**: Stock price where P&L becomes zero
-    
-    #### Important Points:
-    - Maximum loss for bought options is limited to premium paid
-    - P&L shown is at expiration (doesn't include time value)
-    - Break-even points include the cost of premium
-    
-    #### Chart Features:
-    - Blue vertical line: Current stock price
-    - Orange vertical line: Strike price
-    - Solid lines: P&L at expiration
-    - Dashed lines: Return on Investment (ROI)
-    """)
+with tab3:
+    st.subheader("Greeks")
+    # Add the actual content for tab3 here, or use `pass` if not yet implemented
+    pass
 
-[Previous tab3 and tab4 content remains the same...]
+with tab4:
+    st.subheader("Visualizations")
+    # Add the actual content for tab4 here, or use `pass` if not yet implemented
+    pass
